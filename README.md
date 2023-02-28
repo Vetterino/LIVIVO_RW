@@ -10,6 +10,12 @@
 - Python
 - PostgreSQL 15 & pgAdmin4
 
+### Pipeline und Dokumentation
+#### Pipeline
+
 ![image](https://user-images.githubusercontent.com/15416032/221816524-4a4598ae-700e-406e-8543-56eb7d459830.png)
 
-###
+#### Dokumentation
+- Extraktion: Python Skript
+- Landing/ Staging Area & Datenbank: PostgreSQL Dokumentation
+- Ergebnis: PostgreSQL Dokumentation 2
