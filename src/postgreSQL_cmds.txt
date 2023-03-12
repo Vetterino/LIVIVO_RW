@@ -1,0 +1,123 @@
+/*Creating Staging Area*/
+
+/*DOI Table for LIVIVO DOIs*/
+CREATE TABLE public.livivo_stage
+(doi character varying);
+ALTER TABLE IF EXISTS public.livivo_stage
+    OWNER to postgres;
+
+/*Import Data from CSV*/
+COPY livivo_doi FROM 'path/to/livivo_doi.csv' DELIMITER ',' CSV HEADER;
+
+/*Identify Duplicates*/
+SELECT doi, COUNT(doi)
+FROM public.livivo_stage
+GROUP BY doi
+HAVING COUNT(doi) > 1
+ORDER BY COUNT(doi) DESC;
+
+/*Remove Duplicates*/
+UPDATE public.livivo_stage SET doi = new_value WHERE doi IN (SELECT DISTINCT doi FROM public.livivo_stage);
+
+/*Remove unwanted entries*/
+DELETE FROM public.livivo_stage doi = 'notULavail';
+DELETE FROM public.livivo_stage doi = 'NO_DOI';
+
+
+/*Staging Table Data Retraction Watch*/
+-- DROP TABLE IF EXISTS public.rw_staging;
+
+CREATE TABLE IF NOT EXISTS public.rw_staging
+(
+    index character varying COLLATE pg_catalog."default",
+    title character varying COLLATE pg_catalog."default",
+    subject character varying COLLATE pg_catalog."default",
+    institution character varying COLLATE pg_catalog."default",
+    journal character varying COLLATE pg_catalog."default",
+    publisher character varying COLLATE pg_catalog."default",
+    country character varying COLLATE pg_catalog."default",
+    author character varying COLLATE pg_catalog."default",
+    article_type character varying COLLATE pg_catalog."default",
+    retraction_date character varying COLLATE pg_catalog."default",
+    retraction_doi character varying COLLATE pg_catalog."default",
+    retraction_pub_med_id character varying COLLATE pg_catalog."default",
+    original_paper_date character varying COLLATE pg_catalog."default",
+    original_paper_doi character varying COLLATE pg_catalog."default" NOT NULL,
+    original_paper_pub_med_id character varying COLLATE pg_catalog."default",
+    reason character varying COLLATE pg_catalog."default",
+    paywalled character varying COLLATE pg_catalog."default",
+	notes character varying COLLATE pg_catalog."default",
+	retraction_nature character varying COLLATE pg_catalog."default",
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.rw_staging
+    OWNER to postgres;
+	
+/*Drop unwanted Columns*/
+ALTER TABLE public.rw_staging DROP COLUMN paywalled;
+ALTER TABLE public.rw_staging DROP COLUMN index;
+ALTER TABLE public.rw_staging DROP COLUMN notes;
+ALTER TABLE public.rw_staging DROP COLUMN retraction_nature;
+	
+/*Adjust Date time structure*/
+UPDATE public.rw_staging SET retraction_date = TO_CHAR(TO_DATE(retraction_date, 'DD.MM.YYYY'), 'YYYY-MM-DD');
+UPDATE public.rw_staging SET original_paper_date = TO_CHAR(TO_DATE(original_paper_date, 'DD.MM.YYYY'), 'YYYY-MM-DD');
+
+/*Identify Duplicates*/
+SELECT original_paper_doi, COUNT(original_paper_doi)
+FROM public.rw_stage
+GROUP BY original_paper_doi
+HAVING COUNT(original_paper_doi) > 1
+ORDER BY COUNT(original_paper_doi) DESC;
+
+/*Remove Duplicates*/
+UPDATE public.rw_stage SET original_paper_doi = new_value WHERE original_paper_doi IN (SELECT DISTINCT original_paper_doi FROM public.rw_stage);
+
+/*Remove NULL values*/
+DELETE FROM public.rw_stage WHERE original_paper_doi IS NULL;
+
+/*Remove unwanted values*/
+DELETE FROM public.rw_stage WHERE original_paper_doi = 'unavailable';
+
+/*Table for preprocessed Data Retraction Watch*/
+-- DROP TABLE IF EXISTS public.rw_preprocessed;
+
+CREATE TABLE IF NOT EXISTS public.rw_preprocessed
+(
+    title character varying COLLATE pg_catalog."default",
+    subject character varying COLLATE pg_catalog."default",
+    institution character varying COLLATE pg_catalog."default",
+    journal character varying COLLATE pg_catalog."default",
+    publisher character varying COLLATE pg_catalog."default",
+    country character varying COLLATE pg_catalog."default",
+    author character varying COLLATE pg_catalog."default",
+    retraction_date date,
+    retraction_doi character varying COLLATE pg_catalog."default",
+    retraction_pub_med_id integer,
+    original_paper_date date,
+    original_paper_doi character varying COLLATE pg_catalog."default" NOT NULL,
+    original_paper_pub_med_id integer,
+    reason character varying COLLATE pg_catalog."default",
+    CONSTRAINT rw_preprocessed_pkey PRIMARY KEY (original_paper_doi)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.rw_preprocessed
+    OWNER to postgres;
+
+/*Move Data to final Table*/	
+INSERT INTO public.rw_preprocessed (title, subject, institution, publisher, country, author, retraction_date, retraction_doi, retraction_pub_med_idretraction_pub_med_id, original_paper_date, original_paper_doi, original_paper_pub_med_id, reason)
+SELECT title, subject, institution, publisher, country, author, retraction_date, retraction_doi, retraction_pub_med_idretraction_pub_med_id, original_paper_date, original_paper_doi, original_paper_pub_med_id, reason
+FROM public.rw_stage;
+
+/*Join Tables and create Table for final result*/
+CREATE TABLE livivo_retracted AS
+SELECT *
+FROM public.rw_preprocessed
+INNER JOIN public.livivo_stage
+ON public.rw_preprocessed.original_paper_doi = public.livivo_stage.doi;
+
+
