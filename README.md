@@ -17,5 +17,4 @@
 
 #### Dokumentation
 - Extraktion: Python Skript ```/src/harvest_lv_dio.py```
-- Landing/ Staging Area & Datenbank: PostgreSQL Dokumentation
-- Ergebnis: PostgreSQL Dokumentation 2
+- PostgreSQL Dokumentation: ```/src/postgreSQL_cmds.txt```
